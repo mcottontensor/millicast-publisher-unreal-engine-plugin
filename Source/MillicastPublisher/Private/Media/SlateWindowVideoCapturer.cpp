@@ -1,11 +1,9 @@
 #include "SlateWindowVideoCapturer.h"
-
 #include "Framework/Application/SlateApplication.h"
-
 #include "WebRTC/PeerConnection.h"
 #include "MillicastPublisherPrivate.h"
-
 #include "Util.h"
+#include "Stats.h"
 
 // Maybe return a TUniquePtr or Shared or somehting less ... raw
 IMillicastVideoSource* IMillicastVideoSource::Create()
@@ -64,6 +62,8 @@ void SlateWindowVideoCapturer::OnBackBufferReadyToPresent(SWindow& SlateWindow, 
 	if (RtcVideoSource)
 	{
 		check(IsInRenderingThread());
+
+		FPublisherStats::Get().Timings.MarkFrameRendered();
 
 		// Create and send webrtc video frame
 		RtcVideoSource->OnFrameReady(Buffer);

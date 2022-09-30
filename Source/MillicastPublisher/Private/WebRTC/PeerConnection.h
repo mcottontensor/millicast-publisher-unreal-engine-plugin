@@ -92,6 +92,8 @@ public:
 	void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
 	void OnIceConnectionReceivingChange(bool receiving) override;
 
+	void PollStats();
+
 	/* Return the webrtc peerconnection underlying pointer */
 	webrtc::PeerConnectionInterface* operator->()
 	{

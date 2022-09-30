@@ -4,6 +4,7 @@
 #include "GlobalShader.h"
 #include "ScreenRendering.h"
 #include "Runtime/Renderer/Private/ScreenPass.h"
+#include "Stats.h"
 
 FAsyncTextureReadback::~FAsyncTextureReadback()
 {
@@ -79,6 +80,9 @@ void CopyTexture(FRHICommandList& RHICmdList, FTexture2DRHIRef SourceTexture, FT
 void FAsyncTextureReadback::ReadbackAsync_RenderThread(FTexture2DRHIRef SourceTexture, TFunction<void(uint8*,int,int,int)> OnReadbackComplete)
 {
 	checkf(IsInRenderingThread(), TEXT("Texture readback can only occur on the rendering thread."));
+
+	FPublisherStats::Get().Timings.MarkTextureReadbackStart();
+
 	Initialize(SourceTexture);
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -97,6 +101,9 @@ void FAsyncTextureReadback::ReadbackAsync_RenderThread(FTexture2DRHIRef SourceTe
 	TSharedRef<FAsyncTextureReadback> ThisRef = AsShared();
 	RHICmdList.EnqueueLambda([ThisRef, OnReadbackComplete](FRHICommandListImmediate&) {
 		uint8* Pixels = static_cast<uint8*>(ThisRef->ReadbackBuffer);
+
+		FPublisherStats::Get().Timings.MarkTextureReadbackEnd();
+
 		OnReadbackComplete(Pixels, ThisRef->Width, ThisRef->Height, ThisRef->MappedStride);
 	});
 	
