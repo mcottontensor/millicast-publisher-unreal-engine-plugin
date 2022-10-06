@@ -12,6 +12,11 @@ TUniquePtr<rtc::Thread> FWebRTCPeerConnection::SignalingThread = nullptr;
 rtc::scoped_refptr<FAudioDeviceModule> FWebRTCPeerConnection::AudioDeviceModule = nullptr;
 std::unique_ptr<webrtc::TaskQueueFactory> FWebRTCPeerConnection::TaskQueueFactory = nullptr;
 
+FWebRTCPeerConnection::FWebRTCPeerConnection()
+{
+	RTCStatsCollector = MakeUnique<FRTCStatsCollector>(this);
+}
+
 void FWebRTCPeerConnection::CreatePeerConnectionFactory()
 {
 	UE_LOG(LogMillicastPublisher, Log, TEXT("Creating FWebRTCPeerConnectionFactory"));
@@ -268,7 +273,7 @@ void FWebRTCPeerConnection::PollStats()
 		{
 			if (Transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
 			{
-				PeerConnection->GetStats(Transceiver->sender(), FPublisherStats::Get().WebRTCStatsCallback);
+				PeerConnection->GetStats(Transceiver->sender(), RTCStatsCollector.Get());
 			}
 		}
 	}

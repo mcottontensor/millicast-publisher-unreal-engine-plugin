@@ -33,6 +33,7 @@ class FWebRTCPeerConnection : public webrtc::PeerConnectionObserver
 	TUniquePtr<FCreateSessionDescriptionObserver> CreateSessionDescription;
 	TUniquePtr<FSetSessionDescriptionObserver>    LocalSessionDescription;
 	TUniquePtr<FSetSessionDescriptionObserver>    RemoteSessionDescription;
+	TUniquePtr<class FRTCStatsCollector>		  RTCStatsCollector;
 
 	template<typename Callback>
 	webrtc::SessionDescriptionInterface* CreateDescription(const std::string&,
@@ -48,7 +49,7 @@ public:
 	/** Offer/Answer options (e.g. offer to receive audio/video) */
 	webrtc::PeerConnectionInterface::RTCOfferAnswerOptions OaOptions;
 
-	FWebRTCPeerConnection() = default;
+	FWebRTCPeerConnection();
 
 	/** Get WebRTC Peerconnection configuration */
 	static FRTCConfig GetDefaultConfig();
