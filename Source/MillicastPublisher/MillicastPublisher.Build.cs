@@ -48,7 +48,8 @@ namespace UnrealBuildTool.Rules
 					"HeadMountedDisplay",
 					"CinematicCamera",
 					"InputCore",
-					"AudioPlatformConfiguration"
+					"AudioPlatformConfiguration",
+					"AVEncoder",
 				});
 
 			PrivateIncludePathModuleNames.AddRange(
@@ -60,6 +61,20 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"MillicastPublisher/Private",
 				});
+
+			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
+			PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode" });
+			//PrivateIncludePathModuleNames.Add("VulkanRHI");
+			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+			{
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));
+			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			{
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));
+			}
 		}
 	}
 }

@@ -8,6 +8,35 @@ DEFINE_LOG_CATEGORY(LogMillicastStats);
 
 FPublisherStats FPublisherStats::Instance;
 
+double CalcEMA(double PrevAvg, int NumSamples, double Value)
+{
+	const double Mult = 2.0 / (NumSamples + 1.0);
+	const double Result = (Value - PrevAvg) * Mult + PrevAvg;
+	return Result;
+}
+
+void FPublisherStats::TextureReadbackStart()
+{
+	TextureReadbackStartTime = FPlatformTime::Cycles64();
+}
+
+void FPublisherStats::TextureReadbackEnd()
+{
+	uint64 ThisTime = FPlatformTime::Cycles64();
+	double SecondsDelta = FPlatformTime::ToSeconds64(ThisTime - TextureReadbackStartTime);
+	TextureReadbacks = FPlatformMath::Min(Frames + 1, 60);
+	TextureReadbackAvg = CalcEMA(TextureReadbackAvg, TextureReadbacks, SecondsDelta);
+}
+
+void FPublisherStats::FrameRendered()
+{
+	uint64 ThisTime = FPlatformTime::Cycles64();
+	double SecondsDelta = FPlatformTime::ToSeconds64(ThisTime - LastFrameRendered);
+	double FPS = 1.0 / SecondsDelta;
+	Frames = FPlatformMath::Min(Frames + 1, 60);
+	SubmitFPS = CalcEMA(SubmitFPS, Frames, FPS);
+}
+
 void FPublisherStats::Tick(float DeltaTime)
 {
 	if (!GEngine)
@@ -15,28 +44,29 @@ void FPublisherStats::Tick(float DeltaTime)
 		return;
 	}
 
-	// Have a one second window where we sample certain timings
-	Timings.SamplingWindow += DeltaTime;
-	if (Timings.SamplingWindow >= 1.0f)
-	{
-		Timings.SamplingWindow = 0.0f;
-		CalculatedStats.RenderFPS = Timings.FramesSubmitted;
-		Timings.FramesSubmitted = 0;
-	}
+	int MessageKey = 100;
 
-	if (Timings.TextureReadbackEnd > Timings.TextureReadbackStart)
-	{
-		CalculatedStats.TextureCaptureMs = FPlatformTime::ToMilliseconds64(Timings.TextureReadbackEnd - Timings.TextureReadbackStart);
-	}
-
+	int i = 0;
 	for (FRTCStatsCollector* Collector : StatsCollectors)
 	{
 		Collector->Poll();
+		GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Total Encode Time = %.2f s"), Collector->TotalEncodeTime), true);
+		GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Avg Encode Time = %.2f ms"), Collector->AvgEncodeTime), true);
+		GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Encode FPS = %.0f"), Collector->EncodeFPS), true);
+		GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Stats Collector %d"), i), true);
+
+		UE_LOG(LogMillicastPublisher, Log, TEXT("Total Encode Time = %.2f s"), Collector->TotalEncodeTime);
+		UE_LOG(LogMillicastPublisher, Log, TEXT("Avg Encode Time = %.2f ms"), Collector->AvgEncodeTime);
+		UE_LOG(LogMillicastPublisher, Log, TEXT("Encode FPS = %.0f"), Collector->EncodeFPS);
+
+		++i;
 	}
 
-	int MessageKey = 100;
-	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Capture Time = %.2f ms"), CalculatedStats.TextureCaptureMs), true);
-	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Rendered FPS = %d"), CalculatedStats.RenderFPS), true);
+	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("SubmitFPS = %.2f s"), SubmitFPS), true);
+	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("TextureReadTime = %.6f s"), TextureReadbackAvg), true);
+
+	UE_LOG(LogMillicastPublisher, Log, TEXT("SubmitFPS = %.2f s"), SubmitFPS);
+	UE_LOG(LogMillicastPublisher, Log, TEXT("TextureReadTime = %.2f s"), TextureReadbackAvg);
 }
 
 void FPublisherStats::RegisterStatsCollector(FRTCStatsCollector* Connection)
@@ -54,7 +84,7 @@ void FPublisherStats::UnregisterStatsCollector(FRTCStatsCollector* Connection)
  */
 
 FRTCStatsCollector::FRTCStatsCollector(class FWebRTCPeerConnection* InPeerConnection)
-:PeerConnection(InPeerConnection)
+	: PeerConnection(InPeerConnection)
 {
 	FPublisherStats::Get().RegisterStatsCollector(this);
 }
@@ -67,11 +97,6 @@ FRTCStatsCollector::~FRTCStatsCollector()
 void FRTCStatsCollector::Poll()
 {
 	PeerConnection->PollStats();
-
-	int MessageKey = 200;
-	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Total Encode Time = %.2f s"), TotalEncodeTime), true);
-	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Avg Encode Time = %.2f ms"), AvgEncodeTime), true);
-	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Encode FPS = %.0f"), EncodeFPS), true);
 }
 
 void FRTCStatsCollector::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& Report)

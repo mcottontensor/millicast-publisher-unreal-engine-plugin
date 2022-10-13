@@ -298,6 +298,7 @@ bool UMillicastPublisherComponent::PublishToMillicast()
 		auto DataJson = MakeShared<FJsonObject>();
 		DataJson->SetStringField("name", MillicastMediaSource->StreamName);
 		DataJson->SetStringField("sdp", ToString(sdp));
+		DataJson->SetStringField("codec", "h264"); // TODO select
 		DataJson->SetArrayField("events", eventsJson);
 
 		// If multisource feature

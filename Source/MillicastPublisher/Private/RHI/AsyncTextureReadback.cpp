@@ -81,7 +81,7 @@ void FAsyncTextureReadback::ReadbackAsync_RenderThread(FTexture2DRHIRef SourceTe
 {
 	checkf(IsInRenderingThread(), TEXT("Texture readback can only occur on the rendering thread."));
 
-	FPublisherStats::Get().Timings.MarkTextureReadbackStart();
+	FPublisherStats::Get().TextureReadbackStart();
 
 	Initialize(SourceTexture);
 
@@ -102,7 +102,7 @@ void FAsyncTextureReadback::ReadbackAsync_RenderThread(FTexture2DRHIRef SourceTe
 	RHICmdList.EnqueueLambda([ThisRef, OnReadbackComplete](FRHICommandListImmediate&) {
 		uint8* Pixels = static_cast<uint8*>(ThisRef->ReadbackBuffer);
 
-		FPublisherStats::Get().Timings.MarkTextureReadbackEnd();
+		FPublisherStats::Get().TextureReadbackEnd();
 
 		OnReadbackComplete(Pixels, ThisRef->Width, ThisRef->Height, ThisRef->MappedStride);
 	});

@@ -63,7 +63,7 @@ void SlateWindowVideoCapturer::OnBackBufferReadyToPresent(SWindow& SlateWindow, 
 	{
 		check(IsInRenderingThread());
 
-		FPublisherStats::Get().Timings.MarkFrameRendered();
+		FPublisherStats::Get().FrameRendered();
 
 		// Create and send webrtc video frame
 		RtcVideoSource->OnFrameReady(Buffer);
