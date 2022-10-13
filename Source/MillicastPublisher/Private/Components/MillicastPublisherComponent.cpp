@@ -23,15 +23,30 @@ constexpr auto HTTP_OK = 200;
 
 // lambda check if the event is bound before broadcasting.
 auto MakeBroadcastEvent = [](auto&& Event) {
-	return [&Event](auto&& ... Args) {
-		if (Event.IsBound()) 
+	return [&Event](auto&&... Args) {
+		if (Event.IsBound())
 		{
 			Event.Broadcast(std::forward<Args>()...);
 		}
 	};
 };
 
-UMillicastPublisherComponent::UMillicastPublisherComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+FString ToString(EMillicastCodec Codec)
+{
+	switch (Codec)
+	{
+		default:
+		case EMillicastCodec::MC_VP8:
+			return TEXT("vp8");
+		case EMillicastCodec::MC_VP9:
+			return TEXT("vp9");
+		case EMillicastCodec::MC_H264:
+			return TEXT("h264");
+	}
+}
+
+UMillicastPublisherComponent::UMillicastPublisherComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	PeerConnection = nullptr;
 	WS = nullptr;
@@ -116,7 +131,7 @@ void UMillicastPublisherComponent::ParseDirectorResponse(FHttpResponsePtr Respon
 	auto JsonReader = TJsonReaderFactory<>::Create(ResponseDataString);
 
 	// Deserialize received JSON message
-	if (FJsonSerializer::Deserialize(JsonReader, ResponseDataJson)) 
+	if (FJsonSerializer::Deserialize(JsonReader, ResponseDataJson))
 	{
 		TSharedPtr<FJsonObject> DataField = ResponseDataJson->GetObjectField("data");
 
@@ -143,8 +158,9 @@ void UMillicastPublisherComponent::ParseDirectorResponse(FHttpResponsePtr Respon
 */
 bool UMillicastPublisherComponent::Publish()
 {
-	if (!IsValid(MillicastMediaSource)) return false;
-	
+	if (!IsValid(MillicastMediaSource))
+		return false;
+
 	UE_LOG(LogMillicastPublisher, Log, TEXT("Making HTTP director request"));
 	// Create an HTTP request
 	auto PostHttpRequest = FHttpModule::Get().CreateRequest();
@@ -169,22 +185,22 @@ bool UMillicastPublisherComponent::Publish()
 
 	PostHttpRequest->OnProcessRequestComplete()
 		.BindLambda([this](FHttpRequestPtr Request,
-			FHttpResponsePtr Response,
-			bool bConnectedSuccessfully) {
-		// HTTP request sucessful
-		if (bConnectedSuccessfully && Response->GetResponseCode() == HTTP_OK) 
-		{
-			ParseDirectorResponse(Response);
-		}
-		else 
-		{
-			UE_LOG(LogMillicastPublisher, Error, TEXT("Director HTTP request failed %d %S"), Response->GetResponseCode(), *Response->GetContentType());
-			FString ErrorMsg = Response->GetContentAsString();
-			OnAuthenticationFailure.Broadcast(Response->GetResponseCode(), ErrorMsg);
-		}
-	});
+						FHttpResponsePtr Response,
+						bool bConnectedSuccessfully) {
+			// HTTP request sucessful
+			if (bConnectedSuccessfully && Response->GetResponseCode() == HTTP_OK)
+			{
+				ParseDirectorResponse(Response);
+			}
+			else
+			{
+				UE_LOG(LogMillicastPublisher, Error, TEXT("Director HTTP request failed %d %S"), Response->GetResponseCode(), *Response->GetContentType());
+				FString ErrorMsg = Response->GetContentAsString();
+				OnAuthenticationFailure.Broadcast(Response->GetResponseCode(), ErrorMsg);
+			}
+		});
 
-	return PostHttpRequest->ProcessRequest();	    
+	return PostHttpRequest->ProcessRequest();
 }
 
 bool UMillicastPublisherComponent::PublishWithWsAndJwt(const FString& WsUrl, const FString& Jwt)
@@ -199,7 +215,7 @@ void UMillicastPublisherComponent::UnPublish()
 {
 	UE_LOG(LogMillicastPublisher, Display, TEXT("Unpublish"));
 	// Release peerconnection and stop capture
-	if(PeerConnection)
+	if (PeerConnection)
 	{
 		delete PeerConnection;
 		PeerConnection = nullptr;
@@ -208,7 +224,8 @@ void UMillicastPublisherComponent::UnPublish()
 	}
 
 	// Close websocket connection
-	if (WS) {
+	if (WS)
+	{
 		WS->Close();
 		WS = nullptr;
 	}
@@ -222,7 +239,7 @@ bool UMillicastPublisherComponent::IsPublishing() const
 }
 
 bool UMillicastPublisherComponent::StartWebSocketConnection(const FString& Url,
-                                                     const FString& Jwt)
+	const FString& Jwt)
 {
 	UE_LOG(LogMillicastPublisher, Log, TEXT("Start WebSocket connection"));
 	// Check if WebSocket module is loaded. It may crash otherwise.
@@ -254,9 +271,9 @@ bool UMillicastPublisherComponent::PublishToMillicast()
 	CaptureAndAddTracks();
 
 	// Get session description observers
-	auto * CreateSessionDescriptionObserver = PeerConnection->GetCreateDescriptionObserver();
-	auto * LocalDescriptionObserver  = PeerConnection->GetLocalDescriptionObserver();
-	auto * RemoteDescriptionObserver = PeerConnection->GetRemoteDescriptionObserver();
+	auto* CreateSessionDescriptionObserver = PeerConnection->GetCreateDescriptionObserver();
+	auto* LocalDescriptionObserver = PeerConnection->GetLocalDescriptionObserver();
+	auto* RemoteDescriptionObserver = PeerConnection->GetRemoteDescriptionObserver();
 
 	CreateSessionDescriptionObserver->SetOnSuccessCallback([this](const std::string& type, const std::string& sdp) {
 		UE_LOG(LogMillicastPublisher, Display, TEXT("pc.createOffer() | sucess\nsdp : %S"), sdp.c_str());
@@ -267,7 +284,8 @@ bool UMillicastPublisherComponent::PublishToMillicast()
 		oss << s << "; stereo=1";
 
 		auto pos = sdp.find(s);
-		if (pos != std::string::npos) {
+		if (pos != std::string::npos)
+		{
 			sdp_non_const.replace(sdp.find(s), s.size(), oss.str());
 		}
 
@@ -289,7 +307,7 @@ bool UMillicastPublisherComponent::PublishToMillicast()
 		TArray<FString> EvKeys;
 		EventBroadcaster.GetKeys(EvKeys);
 
-		for (auto& ev : EvKeys) 
+		for (auto& ev : EvKeys)
 		{
 			eventsJson.Add(MakeShared<FJsonValueString>(ev));
 		}
@@ -298,7 +316,7 @@ bool UMillicastPublisherComponent::PublishToMillicast()
 		auto DataJson = MakeShared<FJsonObject>();
 		DataJson->SetStringField("name", MillicastMediaSource->StreamName);
 		DataJson->SetStringField("sdp", ToString(sdp));
-		DataJson->SetStringField("codec", "h264"); // TODO select
+		DataJson->SetStringField("codec", ToString(SelectedCodec));
 		DataJson->SetArrayField("events", eventsJson);
 
 		// If multisource feature
@@ -344,11 +362,18 @@ bool UMillicastPublisherComponent::PublishToMillicast()
 	PeerConnection->OaOptions.offer_to_receive_audio = false;
 
 	// Maximum bitrate
-	if (MaximumBitrate.IsSet()) {
+	if (MaximumBitrate.IsSet())
+	{
 		webrtc::PeerConnectionInterface::BitrateParameters bitrateParameters;
 		bitrateParameters.max_bitrate_bps = *MaximumBitrate;
 		(*PeerConnection)->SetBitrate(bitrateParameters);
 	}
+
+	//webrtc::BitrateSettings BitrateSettings;
+	//BitrateSettings.min_bitrate_bps = 19800;
+	//BitrateSettings.max_bitrate_bps = 26900000;
+	//BitrateSettings.start_bitrate_bps = 1234500;
+	//(*PeerConnection)->SetBitrate(BitrateSettings);
 
 	UE_LOG(LogMillicastPublisher, Log, TEXT("Create offer"));
 	PeerConnection->CreateOffer();
@@ -372,8 +397,8 @@ void UMillicastPublisherComponent::OnConnectionError(const FString& Error)
 }
 
 void UMillicastPublisherComponent::OnClosed(int32 StatusCode,
-                                     const FString& Reason,
-                                     bool bWasClean)
+	const FString& Reason,
+	bool bWasClean)
 {
 	UE_LOG(LogMillicastPublisher, Log, TEXT("Millicast WebSocket Closed"))
 }
@@ -387,32 +412,34 @@ void UMillicastPublisherComponent::OnMessage(const FString& Msg)
 
 	// Deserialize JSON message
 	bool ok = FJsonSerializer::Deserialize(Reader, ResponseJson);
-	if (!ok) {
+	if (!ok)
+	{
 		UE_LOG(LogMillicastPublisher, Error, TEXT("Could not deserialize JSON"));
 		return;
 	}
 
 	FString Type;
-	if(!ResponseJson->TryGetStringField("type", Type)) return;
+	if (!ResponseJson->TryGetStringField("type", Type))
+		return;
 
 	// Signaling response
-	if(Type == "response") 
+	if (Type == "response")
 	{
 		auto DataJson = ResponseJson->GetObjectField("data");
 		FString Sdp = DataJson->GetStringField("sdp");
-		if (PeerConnection) 
+		if (PeerConnection)
 		{
 			PeerConnection->SetRemoteDescription(to_string(Sdp));
 		}
 	}
-	else if(Type == "error") // Error in the request data sent to millicast
+	else if (Type == "error") // Error in the request data sent to millicast
 	{
 		FString errorMessage;
 		auto dataJson = ResponseJson->TryGetStringField("data", errorMessage);
 
 		UE_LOG(LogMillicastPublisher, Error, TEXT("WebSocket error : %s"), *errorMessage);
 	}
-	else if(Type == "event") // Events received from millicast
+	else if (Type == "event") // Events received from millicast
 	{
 		FString eventName;
 		ResponseJson->TryGetStringField("name", eventName);
@@ -421,7 +448,7 @@ void UMillicastPublisherComponent::OnMessage(const FString& Msg)
 
 		EventBroadcaster[eventName]();
 	}
-	else 
+	else
 	{
 		UE_LOG(LogMillicastPublisher, Warning, TEXT("WebSocket response type not handled (yet?) %s"), *Type);
 	}
@@ -440,12 +467,12 @@ void UMillicastPublisherComponent::CaptureAndAddTracks()
 
 		if (result.ok())
 		{
-			UE_LOG(LogMillicastPublisher, Log, TEXT("Add transceiver for %s track : %s"), 
+			UE_LOG(LogMillicastPublisher, Log, TEXT("Add transceiver for %s track : %s"),
 				Track->kind().c_str(), Track->id().c_str());
 		}
 		else
 		{
-			UE_LOG(LogMillicastPublisher, Error, TEXT("Couldn't add transceiver for %s track %s : %s"), 
+			UE_LOG(LogMillicastPublisher, Error, TEXT("Couldn't add transceiver for %s track %s : %s"),
 				Track->kind().c_str(),
 				Track->id().c_str(),
 				result.error().message());

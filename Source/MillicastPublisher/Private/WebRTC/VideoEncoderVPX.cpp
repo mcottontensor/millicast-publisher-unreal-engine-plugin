@@ -51,7 +51,7 @@ int32 FVideoEncoderVPX::Encode(webrtc::VideoFrame const& frame, std::vector<webr
 	([WeakContext, frame, frame_types](FRHICommandListImmediate& RHICmdList) {
 		if (TSharedPtr<FSharedContext> Context = WeakContext.Pin())
 		{
-			rtc::scoped_refptr<FNVENCFrameBuffer> VideoFrameBuffer(static_cast<FNVENCFrameBuffer*>(frame.video_frame_buffer().get()));
+			rtc::scoped_refptr<FFrameBufferRHI> VideoFrameBuffer(static_cast<FFrameBufferRHI*>(frame.video_frame_buffer().get()));
 			FTexture2DRHIRef FrameTexture = VideoFrameBuffer->GetTextureRHI();
 
 			Context->AsyncTextureReadback->ReadbackAsync_RenderThread(FrameTexture, [WeakContext, VideoFrameBuffer, frame, frame_types](uint8* B8G8R8A8Pixels, int Width, int Height, int Stride) {

@@ -55,7 +55,7 @@ void FWebRTCPeerConnection::CreatePeerConnectionFactory()
 				nullptr, nullptr, SignalingThread.Get(), AudioDeviceModule,
 				webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>(),
 				webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>(),
-				std::make_unique<FVideoEncoderFactory>(),
+				std::make_unique<FMillicastVideoEncoderFactory>(),
 				webrtc::CreateBuiltinVideoDecoderFactory(),
 				nullptr, AudioProcessingModule
 	  ).release();

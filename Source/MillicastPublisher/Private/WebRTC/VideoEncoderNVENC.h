@@ -3,11 +3,11 @@
 #include "VideoEncoder.h"
 #include "CodecPacket.h"
 
-class FNVENCVideoEncoder : public webrtc::VideoEncoder
+class FVideoEncoderNVENC : public webrtc::VideoEncoder
 {
 public:
-	FNVENCVideoEncoder();
-	virtual ~FNVENCVideoEncoder() override;
+	FVideoEncoderNVENC();
+	virtual ~FVideoEncoderNVENC() override;
 
 	virtual int32 RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback* callback) override;
 	virtual int32 Release() override;
@@ -31,13 +31,12 @@ private:
 	// and the callback
 	struct FDeleteCheck
 	{
-		FNVENCVideoEncoder* Self;
+		FVideoEncoderNVENC* Self;
 	};
 	TSharedPtr<FDeleteCheck> DeleteCheck;
 
 	TSharedPtr<AVEncoder::FVideoEncoder> NVENCEncoder;
 	AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig;
-	int32 WebRtcProposedTargetBitrate = 5000000;
 	webrtc::EncodedImageCallback* OnEncodedImageCallback = nullptr;
 	TOptional<RateControlParameters> PendingRateChange;
 };

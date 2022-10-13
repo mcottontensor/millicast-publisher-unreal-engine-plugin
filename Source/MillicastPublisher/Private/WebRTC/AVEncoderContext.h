@@ -2,15 +2,9 @@
 
 #pragma once
 
-#include "Misc/Optional.h"
 #include "VideoEncoderInput.h"
-#include "RHIStaticStates.h"
-#include "RHIDefinitions.h"
-#include "RHI.h"
-#include "RenderResource.h"
-#include "ScreenRendering.h"
 
-class FNVENCCapturerContext
+class FAVEncoderContext
 {
 public:
 	struct FCapturerInput
@@ -32,7 +26,7 @@ public:
 	};
 
 public:
-	FNVENCCapturerContext(int InCaptureWidth, int InCaptureHeight, bool bInFixedResolution);
+	FAVEncoderContext(int InCaptureWidth, int InCaptureHeight, bool bInFixedResolution);
 	int GetCaptureWidth() const;
 	int GetCaptureHeight() const;
 	bool IsFixedResolution() const;

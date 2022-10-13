@@ -1,40 +1,39 @@
-#include "NVENCVideoEncoder.h"
-#include "NVENCFrameBuffer.h"
-
+#include "VideoEncoderNVENC.h"
+#include "FrameBufferRHI.h"
 #include "VideoEncoderFactory.h"
+#include "Stats.h"
 
-FNVENCVideoEncoder::FNVENCVideoEncoder()
+FVideoEncoderNVENC::FVideoEncoderNVENC()
 {
-	DeleteCheck = MakeShared<FNVENCVideoEncoder::FDeleteCheck>();
+	DeleteCheck = MakeShared<FVideoEncoderNVENC::FDeleteCheck>();
 	DeleteCheck->Self = this;
 }
 
-FNVENCVideoEncoder::~FNVENCVideoEncoder()
+FVideoEncoderNVENC::~FVideoEncoderNVENC()
 {
 }
 
-int32 FNVENCVideoEncoder::RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback* callback)
+int32 FVideoEncoderNVENC::RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback* callback)
 {
 	OnEncodedImageCallback = callback;
 	return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32 FNVENCVideoEncoder::Release()
+int32 FVideoEncoderNVENC::Release()
 {
 	OnEncodedImageCallback = nullptr;
 	return WEBRTC_VIDEO_CODEC_OK;
 }
 
-void FNVENCVideoEncoder::HandlePendingRateChange()
+void FVideoEncoderNVENC::HandlePendingRateChange()
 {
-	if(PendingRateChange.IsSet())
+	if (PendingRateChange.IsSet())
 	{
 		const RateControlParameters& RateChangeParams = PendingRateChange.GetValue();
 
-		WebRtcProposedTargetBitrate = RateChangeParams.bitrate.get_sum_kbps() * 1000;
-
 		EncoderConfig.MaxFramerate = RateChangeParams.framerate_fps;
-		EncoderConfig.TargetBitrate = WebRtcProposedTargetBitrate;
+		EncoderConfig.TargetBitrate = RateChangeParams.bitrate.get_sum_bps();
+		EncoderConfig.MaxBitrate = RateChangeParams.bandwidth_allocation.bps();
 
 		// Only the quality controlling peer should update the underlying encoder configuration with new bitrate/framerate.
 		if (NVENCEncoder)
@@ -49,12 +48,12 @@ void FNVENCVideoEncoder::HandlePendingRateChange()
 
 // Pass rate control parameters from WebRTC to our encoder
 // This is how WebRTC can control the bitrate/framerate of the encoder.
-void FNVENCVideoEncoder::SetRates(RateControlParameters const& parameters)
+void FVideoEncoderNVENC::SetRates(RateControlParameters const& parameters)
 {
 	PendingRateChange.Emplace(parameters);
 }
 
-webrtc::VideoEncoder::EncoderInfo FNVENCVideoEncoder::GetEncoderInfo() const
+webrtc::VideoEncoder::EncoderInfo FVideoEncoderNVENC::GetEncoderInfo() const
 {
 	VideoEncoder::EncoderInfo info;
 	info.supports_native_handle = true;
@@ -63,7 +62,7 @@ webrtc::VideoEncoder::EncoderInfo FNVENCVideoEncoder::GetEncoderInfo() const
 	info.supports_simulcast = false;
 	info.implementation_name = TCHAR_TO_UTF8(*FString::Printf(TEXT("MILLICAST_HW_ENCODER_%s"), GDynamicRHI->GetName()));
 
-	//info.scaling_settings = VideoEncoder::ScalingSettings(LowQP, HighQP);
+	// info.scaling_settings = VideoEncoder::ScalingSettings(LowQP, HighQP);
 
 	// basically means HW encoder must be perfect and drop frames itself etc
 	info.has_trusted_rate_controller = false;
@@ -71,7 +70,7 @@ webrtc::VideoEncoder::EncoderInfo FNVENCVideoEncoder::GetEncoderInfo() const
 	return info;
 }
 
-void FNVENCVideoEncoder::UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& InConfig)
+void FVideoEncoderNVENC::UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& InConfig)
 {
 	EncoderConfig = InConfig;
 
@@ -82,24 +81,25 @@ void FNVENCVideoEncoder::UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig con
 	}
 }
 
-int FNVENCVideoEncoder::InitEncode(webrtc::VideoCodec const* codec_settings, VideoEncoder::Settings const& settings)
+int FVideoEncoderNVENC::InitEncode(webrtc::VideoCodec const* codec_settings, VideoEncoder::Settings const& settings)
 {
 	checkf(AVEncoder::FVideoEncoderFactory::Get().IsSetup(), TEXT("FVideoEncoderFactory not setup"));
 
 	EncoderConfig.Width = codec_settings->width;
 	EncoderConfig.Height = codec_settings->height;
-	EncoderConfig.MaxBitrate = codec_settings->maxBitrate;
-	EncoderConfig.TargetBitrate = codec_settings->startBitrate;
+	EncoderConfig.MaxBitrate = codec_settings->maxBitrate * 1000;
+	EncoderConfig.TargetBitrate = codec_settings->startBitrate * 1000;
 	EncoderConfig.MaxFramerate = codec_settings->maxFramerate;
-	WebRtcProposedTargetBitrate = codec_settings->startBitrate;
+	EncoderConfig.H264Profile = AVEncoder::FVideoEncoder::H264Profile::MAIN;
+	EncoderConfig.RateControlMode = AVEncoder::FVideoEncoder::RateControlMode::VBR; 
 
 	return WEBRTC_VIDEO_CODEC_OK;
 }
 
-int32 FNVENCVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
+int32 FVideoEncoderNVENC::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
 {
 	// Get the frame buffer out of the frame
-	FNVENCFrameBuffer* VideoFrameBuffer = static_cast<FNVENCFrameBuffer*>(frame.video_frame_buffer().get());
+	FFrameBufferRHI* VideoFrameBuffer = static_cast<FFrameBufferRHI*>(frame.video_frame_buffer().get());
 
 	if (!NVENCEncoder)
 	{
@@ -119,7 +119,7 @@ int32 FNVENCVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::vector<we
 		EncoderConfig.Height = FrameHeight;
 		NVENCEncoder->UpdateLayerConfig(0, EncoderConfig);
 	}
-	
+
 	AVEncoder::FVideoEncoder::FEncodeOptions EncodeOptions;
 	if (frame_types && (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey)
 	{
@@ -146,13 +146,10 @@ void CreateH264FragmentHeader(const uint8* CodedData, size_t CodedDataSize, webr
 		{
 			// either a 0,0,1 or 0,0,0,1 sequence indicates a new 'nal'
 			size_t nal_maker_length = 3;
-			if (offset < (CodedDataSize - 3) && CodedData[offset] == 0 &&
-				CodedData[offset + 1] == 0 && CodedData[offset + 2] == 1)
+			if (offset < (CodedDataSize - 3) && CodedData[offset] == 0 && CodedData[offset + 1] == 0 && CodedData[offset + 2] == 1)
 			{
 			}
-			else if (offset < (CodedDataSize - 4) && CodedData[offset] == 0 &&
-				CodedData[offset + 1] == 0 && CodedData[offset + 2] == 0 &&
-				CodedData[offset + 3] == 1)
+			else if (offset < (CodedDataSize - 4) && CodedData[offset] == 0 && CodedData[offset + 1] == 0 && CodedData[offset + 2] == 0 && CodedData[offset + 3] == 1)
 			{
 				nal_maker_length = 4;
 			}
@@ -184,7 +181,7 @@ void CreateH264FragmentHeader(const uint8* CodedData, size_t CodedDataSize, webr
 	}
 }
 
-void FNVENCVideoEncoder::OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
+void FVideoEncoderNVENC::OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
 {
 	webrtc::EncodedImage Image;
 
@@ -215,25 +212,29 @@ void FNVENCVideoEncoder::OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::F
 	CodecInfo.codecSpecific.H264.idr_frame = InPacket.IsKeyFrame;
 	CodecInfo.codecSpecific.H264.base_layer_sync = false;
 
+	const double EncoderLatencyMs = (InPacket.Timings.FinishTs.GetTotalMicroseconds() - InPacket.Timings.StartTs.GetTotalMicroseconds()) / 1000.0;
+	const double BitrateMbps = InPacket.DataSize * 8 * InPacket.Framerate / 1000000.0;
+
+	FPublisherStats& Stats = FPublisherStats::Get();
+	Stats.SetEncoderStats(EncoderLatencyMs, BitrateMbps, InPacket.VideoQP);
+
 	if (OnEncodedImageCallback)
 	{
 		OnEncodedImageCallback->OnEncodedImage(Image, &CodecInfo, &FragHeader);
 	}
 }
 
-void FNVENCVideoEncoder::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput)
+void FVideoEncoderNVENC::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput)
 {
-	// TODO: When we have multiple HW encoders do some factory checking and find the best encoder.
 	const TArray<AVEncoder::FVideoEncoderInfo>& Available = AVEncoder::FVideoEncoderFactory::Get().GetAvailable();
 
 	TUniquePtr<AVEncoder::FVideoEncoder> A = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, EncoderInput, EncoderConfig);
 	NVENCEncoder = TSharedPtr<AVEncoder::FVideoEncoder>(A.Release());
 	checkf(NVENCEncoder, TEXT("Video encoder creation failed, check encoder config."));
 
-	TWeakPtr<FNVENCVideoEncoder::FDeleteCheck> WeakCheck = DeleteCheck;
-	NVENCEncoder->SetOnEncodedPacket([WeakCheck](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) 
-	{
-		if (TSharedPtr<FNVENCVideoEncoder::FDeleteCheck> Check = WeakCheck.Pin())
+	TWeakPtr<FVideoEncoderNVENC::FDeleteCheck> WeakCheck = DeleteCheck;
+	NVENCEncoder->SetOnEncodedPacket([WeakCheck](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) {
+		if (TSharedPtr<FVideoEncoderNVENC::FDeleteCheck> Check = WeakCheck.Pin())
 		{
 			Check->Self->OnEncodedPacket(InLayerIndex, InFrame, InPacket);
 		}

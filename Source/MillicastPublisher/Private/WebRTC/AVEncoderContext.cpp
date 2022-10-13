@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NVENCCapturerContext.h"
+#include "AVEncoderContext.h"
 #include "CudaModule.h"
 #include "VulkanRHIPrivate.h"
-#include "Misc/CoreDelegates.h"
 #include "MillicastPublisherPrivate.h"
 
-FNVENCCapturerContext::FNVENCCapturerContext(int InCaptureWidth, int InCaptureHeight, bool bInFixedResolution)
+FAVEncoderContext::FAVEncoderContext(int InCaptureWidth, int InCaptureHeight, bool bInFixedResolution)
 	: CaptureWidth(InCaptureWidth)
 	, CaptureHeight(InCaptureHeight)
 	, bFixedResolution(bInFixedResolution)
@@ -15,32 +14,32 @@ FNVENCCapturerContext::FNVENCCapturerContext(int InCaptureWidth, int InCaptureHe
 	VideoEncoderInput->SetMaxNumBuffers(3);
 }
 
-void FNVENCCapturerContext::DeleteBackBuffers()
+void FAVEncoderContext::DeleteBackBuffers()
 {
 	BackBuffers.Empty();
 }
 
-bool FNVENCCapturerContext::IsFixedResolution() const
+bool FAVEncoderContext::IsFixedResolution() const
 {
 	return bFixedResolution;
 }
 
-int FNVENCCapturerContext::GetCaptureWidth() const
+int FAVEncoderContext::GetCaptureWidth() const
 {
 	return CaptureWidth;
 }
 
-int FNVENCCapturerContext::GetCaptureHeight() const
+int FAVEncoderContext::GetCaptureHeight() const
 {
 	return CaptureHeight;
 }
 
-TSharedPtr<AVEncoder::FVideoEncoderInput> FNVENCCapturerContext::GetVideoEncoderInput() const
+TSharedPtr<AVEncoder::FVideoEncoderInput> FAVEncoderContext::GetVideoEncoderInput() const
 {
 	return VideoEncoderInput;
 }
 
-void FNVENCCapturerContext::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight)
+void FAVEncoderContext::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight)
 {
 	// Don't change resolution if we are in a fixed resolution capturer or the user has indicated they do not want this behaviour.
 	if (bFixedResolution)
@@ -66,7 +65,7 @@ void FNVENCCapturerContext::SetCaptureResolution(int NewCaptureWidth, int NewCap
 	VideoEncoderInput->Flush();
 }
 
-TSharedPtr<AVEncoder::FVideoEncoderInput> FNVENCCapturerContext::CreateVideoEncoderInput(int InWidth, int InHeight, bool bInFixedResolution)
+TSharedPtr<AVEncoder::FVideoEncoderInput> FAVEncoderContext::CreateVideoEncoderInput(int InWidth, int InHeight, bool bInFixedResolution)
 {
 	if (!GDynamicRHI)
 	{
@@ -115,7 +114,7 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> FNVENCCapturerContext::CreateVideoEnco
 }
 
 #if PLATFORM_WINDOWS
-FTexture2DRHIRef FNVENCCapturerContext::SetBackbufferTextureDX11(AVEncoder::FVideoEncoderInputFrame* InputFrame)
+FTexture2DRHIRef FAVEncoderContext::SetBackbufferTextureDX11(AVEncoder::FVideoEncoderInputFrame* InputFrame)
 {
 	FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 	FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(CaptureWidth, CaptureHeight, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
@@ -124,7 +123,7 @@ FTexture2DRHIRef FNVENCCapturerContext::SetBackbufferTextureDX11(AVEncoder::FVid
 	return Texture;
 }
 
-FTexture2DRHIRef FNVENCCapturerContext::SetBackbufferTextureDX12(AVEncoder::FVideoEncoderInputFrame* InputFrame)
+FTexture2DRHIRef FAVEncoderContext::SetBackbufferTextureDX12(AVEncoder::FVideoEncoderInputFrame* InputFrame)
 {
 	FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 	FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(CaptureWidth, CaptureHeight, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
@@ -134,7 +133,7 @@ FTexture2DRHIRef FNVENCCapturerContext::SetBackbufferTextureDX12(AVEncoder::FVid
 }
 #endif // PLATFORM_WINDOWS
 
-FTexture2DRHIRef FNVENCCapturerContext::SetBackbufferTexturePureVulkan(AVEncoder::FVideoEncoderInputFrame* InputFrame)
+FTexture2DRHIRef FAVEncoderContext::SetBackbufferTexturePureVulkan(AVEncoder::FVideoEncoderInputFrame* InputFrame)
 {
 	FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 	FTexture2DRHIRef Texture =
@@ -146,12 +145,12 @@ FTexture2DRHIRef FNVENCCapturerContext::SetBackbufferTexturePureVulkan(AVEncoder
 	return Texture;
 }
 
-FNVENCCapturerContext::FCapturerInput FNVENCCapturerContext::ObtainCapturerInput()
+FAVEncoderContext::FCapturerInput FAVEncoderContext::ObtainCapturerInput()
 {
 	if (!VideoEncoderInput.IsValid())
 	{
 		UE_LOG(LogMillicastPublisher, Error, TEXT("VideoEncoderInput is nullptr cannot capture a frame."));
-		return FNVENCCapturerContext::FCapturerInput();
+		return FAVEncoderContext::FCapturerInput();
 	}
 
 	// Obtain a frame from video encoder input, we use this frame to store an RHI specific texture.
@@ -160,13 +159,13 @@ FNVENCCapturerContext::FCapturerInput FNVENCCapturerContext::ObtainCapturerInput
 
 	if (InputFrame == nullptr)
 	{
-		return FNVENCCapturerContext::FCapturerInput();
+		return FAVEncoderContext::FCapturerInput();
 	}
 
 	// Back buffer already contains a texture for this particular frame, no need to go and make one.
 	if (BackBuffers.Contains(InputFrame))
 	{
-		return FNVENCCapturerContext::FCapturerInput(InputFrame, BackBuffers[InputFrame]);
+		return FAVEncoderContext::FCapturerInput(InputFrame, BackBuffers[InputFrame]);
 	}
 
 	// Got here, backbuffer does not contain this frame/texture already, so we must create a new platform specific texture.
@@ -188,7 +187,7 @@ FNVENCCapturerContext::FCapturerInput FNVENCCapturerContext::ObtainCapturerInput
 		else
 		{
 			UE_LOG(LogMillicastPublisher, Error, TEXT("Pixel Streaming only supports AMD and NVIDIA devices, this device is neither of those."));
-			return FNVENCCapturerContext::FCapturerInput();
+			return FAVEncoderContext::FCapturerInput();
 		}
 	}
 #if PLATFORM_WINDOWS
@@ -206,13 +205,13 @@ FNVENCCapturerContext::FCapturerInput FNVENCCapturerContext::ObtainCapturerInput
 	else
 	{
 		UE_LOG(LogMillicastPublisher, Error, TEXT("Pixel Streaming does not support this RHI - %s"), *RHIName);
-		return FNVENCCapturerContext::FCapturerInput();
+		return FAVEncoderContext::FCapturerInput();
 	}
 
-	return FNVENCCapturerContext::FCapturerInput(InputFrame, OutTexture);
+	return FAVEncoderContext::FCapturerInput(InputFrame, OutTexture);
 }
 
-FTexture2DRHIRef FNVENCCapturerContext::SetBackbufferTextureCUDAVulkan(AVEncoder::FVideoEncoderInputFrame* InputFrame)
+FTexture2DRHIRef FAVEncoderContext::SetBackbufferTextureCUDAVulkan(AVEncoder::FVideoEncoderInputFrame* InputFrame)
 {
 	FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 	FVulkanDynamicRHI* VulkanDynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);

@@ -37,6 +37,14 @@ void FPublisherStats::FrameRendered()
 	SubmitFPS = CalcEMA(SubmitFPS, Frames, FPS);
 }
 
+void FPublisherStats::SetEncoderStats(double LatencyMs, double BitrateMbps, int QP)
+{
+	EncoderStatSamples = FPlatformMath::Min(EncoderStatSamples + 1, 60);
+	EncoderLatencyMs = CalcEMA(EncoderLatencyMs, EncoderStatSamples, LatencyMs);
+	EncoderBitrateMbps = CalcEMA(EncoderBitrateMbps, EncoderStatSamples, BitrateMbps);
+	EncoderQP = CalcEMA(EncoderQP, EncoderStatSamples, QP);
+}
+
 void FPublisherStats::Tick(float DeltaTime)
 {
 	if (!GEngine)
@@ -64,6 +72,10 @@ void FPublisherStats::Tick(float DeltaTime)
 
 	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("SubmitFPS = %.2f s"), SubmitFPS), true);
 	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("TextureReadTime = %.6f s"), TextureReadbackAvg), true);
+
+	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Encode Latency = %.2f ms"), EncoderLatencyMs), true);
+	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Encode Bitrate = %.2f Mbps"), EncoderBitrateMbps), true);
+	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Encode QP = %.0f"), EncoderQP), true);
 
 	UE_LOG(LogMillicastPublisher, Log, TEXT("SubmitFPS = %.2f s"), SubmitFPS);
 	UE_LOG(LogMillicastPublisher, Log, TEXT("TextureReadTime = %.2f s"), TextureReadbackAvg);

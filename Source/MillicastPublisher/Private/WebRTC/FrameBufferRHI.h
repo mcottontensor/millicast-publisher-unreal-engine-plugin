@@ -25,10 +25,10 @@ namespace libyuv
 	}
 } // namespace libyuv
 
-class FNVENCFrameBuffer : public webrtc::VideoFrameBuffer
+class FFrameBufferRHI : public webrtc::VideoFrameBuffer
 {
 public:
-	FNVENCFrameBuffer(FTexture2DRHIRef SourceTexture,
+	FFrameBufferRHI(FTexture2DRHIRef SourceTexture,
 		AVEncoder::FVideoEncoderInputFrame* InputFrame,
 		TSharedPtr<AVEncoder::FVideoEncoderInput> InputVideoEncoderInput)
 		: TextureRef(SourceTexture)
@@ -38,7 +38,7 @@ public:
 		Frame->Obtain();
 	}
 
-	~FNVENCFrameBuffer()
+	~FFrameBufferRHI()
 	{
 		Frame->Release();
 	}

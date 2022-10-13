@@ -3,11 +3,11 @@
 
 #include "WebRTCInc.h"
 
-class FVideoEncoderFactory : public webrtc::VideoEncoderFactory
+class FMillicastVideoEncoderFactory : public webrtc::VideoEncoderFactory
 {
 public:
-	FVideoEncoderFactory();
-	virtual ~FVideoEncoderFactory() override;
+	FMillicastVideoEncoderFactory();
+	virtual ~FMillicastVideoEncoderFactory() override;
 
 	// webrtc::VideoEncoderFactory Interface begin
 	virtual std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;

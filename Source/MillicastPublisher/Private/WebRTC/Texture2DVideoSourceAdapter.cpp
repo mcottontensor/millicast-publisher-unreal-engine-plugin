@@ -2,8 +2,8 @@
 // Copyright Millicast 2022. All Rights Reserved.
 
 #include "Texture2DVideoSourceAdapter.h"
-#include "Texture2DFrameBuffer.h"
 #include "MillicastPublisherPrivate.h"
+#include "FrameBufferRHI.h"
 
 inline void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture)
 {
@@ -74,10 +74,10 @@ void FTexture2DVideoSourceAdapter::OnFrameReady(const FTexture2DRHIRef& FrameBuf
 	 if (!CaptureContext)
 	 {
 	 	FIntPoint FBSize = FrameBuffer->GetSizeXY();
-	 	CaptureContext = MakeUnique<FNVENCCapturerContext>(FBSize.X, FBSize.Y, true);
+	 	CaptureContext = MakeUnique<FAVEncoderContext>(FBSize.X, FBSize.Y, true);
 	 }
 
-	 FNVENCCapturerContext::FCapturerInput CapturerInput = CaptureContext->ObtainCapturerInput();
+	 FAVEncoderContext::FCapturerInput CapturerInput = CaptureContext->ObtainCapturerInput();
 	 AVEncoder::FVideoEncoderInputFrame* InputFrame = CapturerInput.InputFrame;
 	 FTexture2DRHIRef Texture = CapturerInput.Texture.GetValue();
 
@@ -86,7 +86,7 @@ void FTexture2DVideoSourceAdapter::OnFrameReady(const FTexture2DRHIRef& FrameBuf
 
 	 CopyTexture(FrameBuffer, Texture);
 
-	 rtc::scoped_refptr<FNVENCFrameBuffer> Buffer = new rtc::RefCountedObject<FNVENCFrameBuffer>(Texture, InputFrame, CaptureContext->GetVideoEncoderInput());
+	 rtc::scoped_refptr<FFrameBufferRHI> Buffer = new rtc::RefCountedObject<FFrameBufferRHI>(Texture, InputFrame, CaptureContext->GetVideoEncoderInput());
 	 webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder()
 	 							   .set_video_frame_buffer(Buffer)
 	 							   .set_timestamp_us(Timestamp)

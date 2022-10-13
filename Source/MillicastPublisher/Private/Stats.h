@@ -40,6 +40,8 @@ public:
 	void TextureReadbackEnd();
 	void FrameRendered();
 
+	void SetEncoderStats(double LatencyMs, double BitrateMbps, int QP);
+
 private:
 	// Intent is to access through FPublisherStats::Get()
 	static FPublisherStats Instance;
@@ -51,6 +53,11 @@ private:
 	uint64 LastFrameRendered = 0;
 	int Frames = 0;
 	double SubmitFPS = 0;
+
+	int EncoderStatSamples = 0;
+	double EncoderLatencyMs = 0;
+	double EncoderBitrateMbps = 0;
+	double EncoderQP = 0;
 
 public:
 	static FPublisherStats& Get() { return Instance; }
