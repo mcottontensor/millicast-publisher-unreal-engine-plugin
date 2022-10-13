@@ -63,9 +63,9 @@ void FPublisherStats::Tick(float DeltaTime)
 		GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Encode FPS = %.0f"), Collector->EncodeFPS), true);
 		GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Stats Collector %d"), i), true);
 
-		UE_LOG(LogMillicastPublisher, Log, TEXT("Total Encode Time = %.2f s"), Collector->TotalEncodeTime);
-		UE_LOG(LogMillicastPublisher, Log, TEXT("Avg Encode Time = %.2f ms"), Collector->AvgEncodeTime);
-		UE_LOG(LogMillicastPublisher, Log, TEXT("Encode FPS = %.0f"), Collector->EncodeFPS);
+		//UE_LOG(LogMillicastPublisher, Log, TEXT("Total Encode Time = %.2f s"), Collector->TotalEncodeTime);
+		//UE_LOG(LogMillicastPublisher, Log, TEXT("Avg Encode Time = %.2f ms"), Collector->AvgEncodeTime);
+		//UE_LOG(LogMillicastPublisher, Log, TEXT("Encode FPS = %.0f"), Collector->EncodeFPS);
 
 		++i;
 	}
@@ -77,8 +77,8 @@ void FPublisherStats::Tick(float DeltaTime)
 	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Encode Bitrate = %.2f Mbps"), EncoderBitrateMbps), true);
 	GEngine->AddOnScreenDebugMessage(MessageKey++, 0.0f, FColor::Green, FString::Printf(TEXT("Encode QP = %.0f"), EncoderQP), true);
 
-	UE_LOG(LogMillicastPublisher, Log, TEXT("SubmitFPS = %.2f s"), SubmitFPS);
-	UE_LOG(LogMillicastPublisher, Log, TEXT("TextureReadTime = %.2f s"), TextureReadbackAvg);
+	//UE_LOG(LogMillicastPublisher, Log, TEXT("SubmitFPS = %.2f s"), SubmitFPS);
+	//UE_LOG(LogMillicastPublisher, Log, TEXT("TextureReadTime = %.2f s"), TextureReadbackAvg);
 }
 
 void FPublisherStats::RegisterStatsCollector(FRTCStatsCollector* Connection)
