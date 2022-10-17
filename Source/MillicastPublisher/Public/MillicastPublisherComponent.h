@@ -77,6 +77,13 @@ public:
 	bool IsPublishing() const;
 
 	/**
+	* Set the minimum bitrate for the peerconnection
+	* Have to be called before Publish
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MillicastPublisher", META = (DisplayName = "SetMinimumBitrate"))
+	void SetMinimumBitrate(int Bps);
+
+	/**
 	* Set the maximum bitrate for the peerconnection
 	* Have to be called before Publish
 	*/
@@ -140,4 +147,5 @@ private:
 	/** Publisher */
 	bool bIsPublishing;
 	TOptional<int> MaximumBitrate; // in bps
+	TOptional<int> MinimumBitrate; // in bps
 };
