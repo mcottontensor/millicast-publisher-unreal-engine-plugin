@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "AudioDeviceModule.h"
+#include "VideoEncoderFactory.h"
 
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> FWebRTCPeerConnection::PeerConnectionFactory = nullptr;
 TUniquePtr<rtc::Thread> FWebRTCPeerConnection::SignalingThread = nullptr;
@@ -49,7 +50,7 @@ void FWebRTCPeerConnection::CreatePeerConnectionFactory()
 				nullptr, nullptr, SignalingThread.Get(), AudioDeviceModule,
 				webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>(),
 				webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>(),
-				webrtc::CreateBuiltinVideoEncoderFactory(),
+				std::make_unique<FMillicastVideoEncoderFactory>(),
 				webrtc::CreateBuiltinVideoDecoderFactory(),
 				nullptr, AudioProcessingModule
 	  ).release();

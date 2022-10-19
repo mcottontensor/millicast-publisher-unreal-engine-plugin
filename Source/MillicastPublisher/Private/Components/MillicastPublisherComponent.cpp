@@ -31,6 +31,20 @@ auto MakeBroadcastEvent = [](auto&& Event) {
 	};
 };
 
+FString ToString(EMillicastCodec Codec)
+{
+	switch (Codec)
+	{
+		default:
+		case EMillicastCodec::MC_VP8:
+			return TEXT("vp8");
+		case EMillicastCodec::MC_VP9:
+			return TEXT("vp9");
+		case EMillicastCodec::MC_H264:
+			return TEXT("h264");
+	}
+}
+
 UMillicastPublisherComponent::UMillicastPublisherComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	PeerConnection = nullptr;
@@ -298,6 +312,7 @@ bool UMillicastPublisherComponent::PublishToMillicast()
 		auto DataJson = MakeShared<FJsonObject>();
 		DataJson->SetStringField("name", MillicastMediaSource->StreamName);
 		DataJson->SetStringField("sdp", ToString(sdp));
+		DataJson->SetStringField("codec", ToString(SelectedCodec));
 		DataJson->SetArrayField("events", eventsJson);
 
 		// If multisource feature
