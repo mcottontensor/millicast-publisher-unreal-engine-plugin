@@ -437,7 +437,10 @@ void UMillicastPublisherComponent::OnMessage(const FString& Msg)
 
 		UE_LOG(LogMillicastPublisher, Log, TEXT("Received event : %s"), *eventName);
 
-		EventBroadcaster[eventName]();
+		if (EventBroadcaster.Contains(eventName))
+		{
+			EventBroadcaster[eventName]();
+		}
 	}
 	else 
 	{

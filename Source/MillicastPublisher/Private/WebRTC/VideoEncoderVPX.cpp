@@ -48,25 +48,14 @@ int32 FVideoEncoderVPX::Release()
 
 int32 FVideoEncoderVPX::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
 {
+	rtc::scoped_refptr<FFrameBufferRHI> VideoFrameBuffer(static_cast<FFrameBufferRHI*>(frame.video_frame_buffer().get()));
 	TWeakPtr<FSharedContext> WeakContext = SharedContext;
-
-	ENQUEUE_RENDER_COMMAND(FVideoEncoderVPXI420)
-	([WeakContext, frame, frame_types](FRHICommandListImmediate& RHICmdList) {
+	VideoFrameBuffer->ConvertI420([WeakContext, VideoFrameBuffer, frame, frame_types](){
 		if (TSharedPtr<FSharedContext> Context = WeakContext.Pin())
 		{
-			rtc::scoped_refptr<FFrameBufferRHI> VideoFrameBuffer(static_cast<FFrameBufferRHI*>(frame.video_frame_buffer().get()));
-			FTexture2DRHIRef FrameTexture = VideoFrameBuffer->GetTextureRHI();
-
-			Context->AsyncTextureReadback->ReadbackAsync_RenderThread(FrameTexture, [WeakContext, VideoFrameBuffer, frame, frame_types](uint8* B8G8R8A8Pixels, int Width, int Height, int Stride) {
-				if (TSharedPtr<FSharedContext> Context = WeakContext.Pin())
-				{
-					VideoFrameBuffer->SetI420Data(B8G8R8A8Pixels, Width, Height, Stride);
-					Context->WebRTCEncoder->Encode(frame, frame_types);
-				}
-			});
+			Context->WebRTCEncoder->Encode(frame, frame_types);
 		}
 	});
-
 	return WEBRTC_VIDEO_CODEC_OK;
 }
 

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "WebRTCInc.h"
-#include "RHI/AsyncTextureReadback.h"
 
 // Wrapper for VPX encoders just to wrap the RHI texture to I420 step in Encode
 class FVideoEncoderVPX : public webrtc::VideoEncoder
@@ -30,11 +29,9 @@ private:
 	{
 		FSharedContext(std::unique_ptr<webrtc::VideoEncoder> InWebRTCEncoder)
 			: WebRTCEncoder(std::move(InWebRTCEncoder))
-			, AsyncTextureReadback(MakeShared<FAsyncTextureReadback>())
 		{
 		}
 		std::unique_ptr<webrtc::VideoEncoder> WebRTCEncoder;
-		TSharedPtr<FAsyncTextureReadback> AsyncTextureReadback;
 	};
 	TSharedPtr<FSharedContext> SharedContext;
 };

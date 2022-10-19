@@ -5,7 +5,7 @@
 #include "WebRTCInc.h"
 #include "VideoEncoderInput.h"
 #include "RHI.h"
-#include "RHI/AsyncTextureReadback.h"
+#include "RHIGPUReadback.h"
 
 namespace libyuv
 {
@@ -36,6 +36,7 @@ public:
 		, VideoEncoderInput(InputVideoEncoderInput)
 	{
 		Frame->Obtain();
+		//ConvertI420();
 	}
 
 	~FFrameBufferRHI()
@@ -83,27 +84,24 @@ public:
 		return VideoEncoderInput;
 	}
 
-	void SetI420Data(uint8* B8G8R8A8Pixels, int Width, int Height, int Stride)
+	void ConvertI420(const TFunction<void()>& Callback)
 	{
-		Buffer = webrtc::I420Buffer::Create(Width, Height);
-
-		uint8* DataY = Buffer->MutableDataY();
-		uint8* DataU = Buffer->MutableDataU();
-		uint8* DataV = Buffer->MutableDataV();
-
-		const auto STRIDES = Stride * 4;
-
-		libyuv::ARGBToI420(
-			B8G8R8A8Pixels,
-			STRIDES,
-			Buffer->MutableDataY(),
-			Buffer->StrideY(),
-			Buffer->MutableDataU(),
-			Buffer->StrideU(),
-			Buffer->MutableDataV(),
-			Buffer->StrideV(),
-			Buffer->width(),
-			Buffer->height());
+		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)
+		(
+			[this, Callback](FRHICommandListImmediate& RHICmdList) {
+				if (GDynamicRHI && GDynamicRHI->GetName() == FString(TEXT("D3D12")))
+				{
+					ReadTextureDX12(RHICmdList);
+				}
+				else
+				{
+					ReadTexture(RHICmdList);
+				}
+				if (Callback)
+				{
+					Callback();
+				}
+			});
 	}
 
 private:
@@ -111,4 +109,67 @@ private:
 	AVEncoder::FVideoEncoderInputFrame* Frame;
 	TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput;
 	rtc::scoped_refptr<webrtc::I420Buffer> Buffer;
+	TUniquePtr<FRHIGPUTextureReadback> Readback;
+
+	void ReadTextureDX12(FRHICommandListImmediate& RHICmdList)
+	{
+		if (!Readback.IsValid())
+		{
+			Readback = MakeUnique<FRHIGPUTextureReadback>(TEXT("CaptureReadback"));
+		}
+
+		Readback->EnqueueCopy(RHICmdList, TextureRef);
+		RHICmdList.BlockUntilGPUIdle();
+		check(Readback->IsReady());
+
+		int Width = TextureRef->GetSizeX();
+		int Height = TextureRef->GetSizeY();
+
+		Buffer = webrtc::I420Buffer::Create(Width, Height);
+		void* TextureData = Readback->Lock(Width);
+		if (TextureData)
+		{
+			libyuv::ARGBToI420(
+				static_cast<uint8*>(TextureData),
+				Width * 4,
+				Buffer->MutableDataY(),
+				Buffer->StrideY(),
+				Buffer->MutableDataU(),
+				Buffer->StrideU(),
+				Buffer->MutableDataV(),
+				Buffer->StrideV(),
+				Buffer->width(),
+				Buffer->height());
+		}
+
+		Readback->Unlock();
+	}
+
+	void ReadTexture(FRHICommandListImmediate& RHICmdList)
+	{
+		uint32 stride;
+		void* TextureData = (uint8*)RHICmdList.LockTexture2D(TextureRef, 0, EResourceLockMode::RLM_ReadOnly, stride, true);
+
+		int Width = TextureRef->GetSizeX();
+		int Height = TextureRef->GetSizeY();
+
+		Buffer = webrtc::I420Buffer::Create(Width, Height);
+
+		if (TextureData)
+		{
+			libyuv::ARGBToI420(
+				static_cast<uint8*>(TextureData),
+				Width * 4,
+				Buffer->MutableDataY(),
+				Buffer->StrideY(),
+				Buffer->MutableDataU(),
+				Buffer->StrideU(),
+				Buffer->MutableDataV(),
+				Buffer->StrideV(),
+				Buffer->width(),
+				Buffer->height());
+		}
+
+		RHICmdList.UnlockTexture2D(TextureRef, 0, true);
+	}
 };
