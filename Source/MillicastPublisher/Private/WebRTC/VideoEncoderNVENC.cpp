@@ -7,6 +7,7 @@
 FVideoEncoderNVENC::FVideoEncoderNVENC()
 {
 	SharedContext = MakeShared<FVideoEncoderNVENC::FSharedContext>();
+	SharedContext->ParentSection = &ContextSection;
 }
 
 FVideoEncoderNVENC::~FVideoEncoderNVENC()
