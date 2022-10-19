@@ -35,6 +35,10 @@
 		{
 			"Name": "MediaIOFramework",
 			"Enabled": true
+		},
+		{
+			"Name": "HardwareEncoders",
+			"Enabled": true
 		}
 	]
 }

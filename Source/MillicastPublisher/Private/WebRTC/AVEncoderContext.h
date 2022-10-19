@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Millicast 2022. All Rights Reserved.
 
 #pragma once
 

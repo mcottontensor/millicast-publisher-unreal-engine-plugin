@@ -1,26 +1,32 @@
+// Copyright Millicast 2022. All Rights Reserved.
+
 #include "VideoEncoderNVENC.h"
 #include "FrameBufferRHI.h"
 #include "VideoEncoderFactory.h"
 
 FVideoEncoderNVENC::FVideoEncoderNVENC()
 {
-	DeleteCheck = MakeShared<FVideoEncoderNVENC::FDeleteCheck>();
-	DeleteCheck->Self = this;
+	SharedContext = MakeShared<FVideoEncoderNVENC::FSharedContext>();
 }
 
 FVideoEncoderNVENC::~FVideoEncoderNVENC()
 {
+	FScopeLock Lock(&ContextSection);
+	SharedContext->OnEncodedImageCallback = nullptr;
+	SharedContext->ParentSection = nullptr;
 }
 
 int32 FVideoEncoderNVENC::RegisterEncodeCompleteCallback(webrtc::EncodedImageCallback* callback)
 {
-	OnEncodedImageCallback = callback;
+	FScopeLock Lock(&ContextSection);
+	SharedContext->OnEncodedImageCallback = callback;
 	return WEBRTC_VIDEO_CODEC_OK;
 }
 
 int32 FVideoEncoderNVENC::Release()
 {
-	OnEncodedImageCallback = nullptr;
+	FScopeLock Lock(&ContextSection);
+	SharedContext->OnEncodedImageCallback = nullptr;
 	return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -103,6 +109,10 @@ int32 FVideoEncoderNVENC::Encode(webrtc::VideoFrame const& frame, std::vector<we
 	if (!NVENCEncoder)
 	{
 		CreateAVEncoder(VideoFrameBuffer->GetVideoEncoderInput());
+		if (!NVENCEncoder)
+		{
+			return WEBRTC_VIDEO_CODEC_ENCODER_FAILURE;
+		}
 	}
 
 	// Change rates, if required.
@@ -180,7 +190,7 @@ void CreateH264FragmentHeader(const uint8* CodedData, size_t CodedDataSize, webr
 	}
 }
 
-void FVideoEncoderNVENC::OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
+void OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket, webrtc::EncodedImageCallback* OnEncodedImageCallback)
 {
 	webrtc::EncodedImage Image;
 
@@ -223,16 +233,21 @@ void FVideoEncoderNVENC::OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::F
 void FVideoEncoderNVENC::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput)
 {
 	const TArray<AVEncoder::FVideoEncoderInfo>& Available = AVEncoder::FVideoEncoderFactory::Get().GetAvailable();
+	checkf(Available.Num() > 0, TEXT("No AVEncoders available. Check that the Hardware Encoders plugin is loaded."));
 
-	TUniquePtr<AVEncoder::FVideoEncoder> A = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, EncoderInput, EncoderConfig);
-	NVENCEncoder = TSharedPtr<AVEncoder::FVideoEncoder>(A.Release());
-	checkf(NVENCEncoder, TEXT("Video encoder creation failed, check encoder config."));
+	if (!Available.IsEmpty())
+	{
+		TUniquePtr<AVEncoder::FVideoEncoder> EncoderTemp = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, EncoderInput, EncoderConfig);
+		NVENCEncoder = TSharedPtr<AVEncoder::FVideoEncoder>(EncoderTemp.Release());
+		checkf(NVENCEncoder, TEXT("Video encoder creation failed, check encoder config."));
 
-	TWeakPtr<FVideoEncoderNVENC::FDeleteCheck> WeakCheck = DeleteCheck;
-	NVENCEncoder->SetOnEncodedPacket([WeakCheck](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) {
-		if (TSharedPtr<FVideoEncoderNVENC::FDeleteCheck> Check = WeakCheck.Pin())
-		{
-			Check->Self->OnEncodedPacket(InLayerIndex, InFrame, InPacket);
-		}
-	});
+		TWeakPtr<FVideoEncoderNVENC::FSharedContext> WeakContext = SharedContext;
+		NVENCEncoder->SetOnEncodedPacket([WeakContext](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) {
+			if (TSharedPtr<FVideoEncoderNVENC::FSharedContext> Context = WeakContext.Pin())
+			{
+				FScopeLock Lock(Context->ParentSection);
+				OnEncodedPacket(InLayerIndex, InFrame, InPacket, Context->OnEncodedImageCallback);
+			}
+		});
+	}
 }

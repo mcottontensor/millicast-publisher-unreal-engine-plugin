@@ -1,3 +1,5 @@
+// Copyright Millicast 2022. All Rights Reserved.
+
 #include "MillicastVideoEncoderFactory.h"
 #include "absl/strings/match.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"

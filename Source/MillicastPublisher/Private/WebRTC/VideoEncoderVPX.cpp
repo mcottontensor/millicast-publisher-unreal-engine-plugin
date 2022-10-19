@@ -1,3 +1,5 @@
+// Copyright Millicast 2022. All Rights Reserved.
+
 #include "VideoEncoderVPX.h"
 #include "FrameBufferRHI.h"
 
@@ -66,7 +68,6 @@ int32 FVideoEncoderVPX::Encode(webrtc::VideoFrame const& frame, std::vector<webr
 	});
 
 	return WEBRTC_VIDEO_CODEC_OK;
-	// return WebRTCEncoder->Encode(frame, frame_types);
 }
 
 void FVideoEncoderVPX::SetRates(RateControlParameters const& parameters)

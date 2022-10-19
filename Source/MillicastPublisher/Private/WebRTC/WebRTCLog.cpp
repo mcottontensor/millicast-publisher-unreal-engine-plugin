@@ -1,3 +1,5 @@
+// Copyright Millicast 2022. All Rights Reserved.
+
 #include "WebRTCLog.h"
 #include "MillicastPublisherPrivate.h"
 

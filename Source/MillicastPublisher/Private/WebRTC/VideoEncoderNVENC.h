@@ -1,3 +1,5 @@
+// Copyright Millicast 2022. All Rights Reserved.
+
 #pragma once
 
 #include "VideoEncoder.h"
@@ -21,22 +23,21 @@ public:
 	AVEncoder::FVideoEncoder::FLayerConfig GetConfig() const { return EncoderConfig; }
 
 private:
-	void OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket);
 	void UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& Config);
 	void HandlePendingRateChange();
 	void CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput);
 
-	// "this" cannot be a shared_ptr because webrtc wants a unique_ptr so instead we use
-	// an owned shared ptr to make sure this encoder hasnt gone away between encode
-	// and the callback
-	struct FDeleteCheck
+	// "this" cannot be a shared_ptr because webrtc wants a unique_ptr
+	// we use this shared context to make sure we dont try to call a cleared callback.
+	struct FSharedContext
 	{
-		FVideoEncoderNVENC* Self;
+		webrtc::EncodedImageCallback* OnEncodedImageCallback = nullptr;
+		FCriticalSection* ParentSection = nullptr;
 	};
-	TSharedPtr<FDeleteCheck> DeleteCheck;
+	TSharedPtr<FSharedContext> SharedContext;
+	FCriticalSection ContextSection; // used to prevent clearing of the callback while we're using it
 
 	TSharedPtr<AVEncoder::FVideoEncoder> NVENCEncoder;
 	AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig;
-	webrtc::EncodedImageCallback* OnEncodedImageCallback = nullptr;
 	TOptional<RateControlParameters> PendingRateChange;
 };
