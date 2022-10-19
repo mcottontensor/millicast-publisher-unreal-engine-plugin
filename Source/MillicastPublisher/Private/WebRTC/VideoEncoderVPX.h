@@ -23,15 +23,5 @@ public:
 	virtual EncoderInfo GetEncoderInfo() const override;
 
 private:
-	// "this" cannot be a shared_ptr because webrtc wants a unique_ptr so instead we use
-	// an owned shared ptr to access all the shared context items in render thread/etc.
-	struct FSharedContext
-	{
-		FSharedContext(std::unique_ptr<webrtc::VideoEncoder> InWebRTCEncoder)
-			: WebRTCEncoder(std::move(InWebRTCEncoder))
-		{
-		}
-		std::unique_ptr<webrtc::VideoEncoder> WebRTCEncoder;
-	};
-	TSharedPtr<FSharedContext> SharedContext;
+	std::unique_ptr<webrtc::VideoEncoder> WebRTCEncoder;
 };
