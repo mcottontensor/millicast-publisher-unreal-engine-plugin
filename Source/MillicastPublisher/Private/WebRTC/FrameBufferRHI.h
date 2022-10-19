@@ -6,6 +6,7 @@
 #include "VideoEncoderInput.h"
 #include "RHI.h"
 #include "RHIGPUReadback.h"
+#include "Stats.h"
 
 namespace libyuv
 {
@@ -60,6 +61,7 @@ public:
 
 	virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override
 	{
+		FPublisherStats::Get().TextureReadbackStart();
 		FEvent* TaskEvent = FPlatformProcess::GetSynchEventFromPool();
 		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)
 		(
@@ -95,7 +97,7 @@ public:
 				Buffer->width(),
 				Buffer->height());
 		}
-
+		FPublisherStats::Get().TextureReadbackEnd();
 		return Buffer;
 	}
 

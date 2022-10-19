@@ -97,7 +97,7 @@ int FVideoEncoderNVENC::InitEncode(webrtc::VideoCodec const* codec_settings, Vid
 	EncoderConfig.TargetBitrate = codec_settings->startBitrate * 1000;
 	EncoderConfig.MaxFramerate = codec_settings->maxFramerate;
 	EncoderConfig.H264Profile = AVEncoder::FVideoEncoder::H264Profile::MAIN;
-	EncoderConfig.RateControlMode = AVEncoder::FVideoEncoder::RateControlMode::VBR; 
+	EncoderConfig.RateControlMode = AVEncoder::FVideoEncoder::RateControlMode::VBR;
 
 	return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -225,6 +225,8 @@ void OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFra
 	const double EncoderLatencyMs = (InPacket.Timings.FinishTs.GetTotalMicroseconds() - InPacket.Timings.StartTs.GetTotalMicroseconds()) / 1000.0;
 	const double BitrateMbps = InPacket.DataSize * 8 * InPacket.Framerate / 1000000.0;
 
+	FPublisherStats::Get().SetEncoderStats(EncoderLatencyMs, BitrateMbps, InPacket.VideoQP);
+	
 	if (OnEncodedImageCallback)
 	{
 		OnEncodedImageCallback->OnEncodedImage(Image, &CodecInfo, &FragHeader);
