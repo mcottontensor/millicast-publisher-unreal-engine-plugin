@@ -2,11 +2,11 @@
 
 #include "PeerConnection.h"
 #include "MillicastPublisherPrivate.h"
-
-#include <sstream>
-
 #include "AudioDeviceModule.h"
 #include "VideoEncoderFactory.h"
+#include "MillicastVideoEncoderFactory.h"
+
+#include <sstream>
 
 rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> FWebRTCPeerConnection::PeerConnectionFactory = nullptr;
 TUniquePtr<rtc::Thread> FWebRTCPeerConnection::SignalingThread = nullptr;

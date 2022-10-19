@@ -4,6 +4,9 @@
 #include "Texture2DVideoSourceAdapter.h"
 #include "MillicastPublisherPrivate.h"
 #include "FrameBufferRHI.h"
+#include "GlobalShader.h"
+#include "CommonRenderResources.h"
+#include "ScreenRendering.h"
 
 inline void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture)
 {

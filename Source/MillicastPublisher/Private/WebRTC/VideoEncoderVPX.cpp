@@ -1,4 +1,5 @@
 #include "VideoEncoderVPX.h"
+#include "FrameBufferRHI.h"
 
 FVideoEncoderVPX::FVideoEncoderVPX(int VPXVersion)
 {
