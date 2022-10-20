@@ -37,6 +37,18 @@ public:
 		, VideoEncoderInput(InputVideoEncoderInput)
 	{
 		Frame->Obtain();
+
+		FPublisherStats::Get().TextureReadbackStart();
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		if (GDynamicRHI && GDynamicRHI->GetName() == FString(TEXT("D3D12")))
+		{
+			ReadTextureDX12(RHICmdList);
+		}
+		else
+		{
+			ReadTexture(RHICmdList);
+		}
+		FPublisherStats::Get().TextureReadbackEnd();
 	}
 
 	~FFrameBufferRHI()
@@ -61,43 +73,28 @@ public:
 
 	virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override
 	{
-		FPublisherStats::Get().TextureReadbackStart();
-		FEvent* TaskEvent = FPlatformProcess::GetSynchEventFromPool();
-		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)
-		(
-			[this, TaskEvent](FRHICommandListImmediate& RHICmdList) {
-				if (GDynamicRHI && GDynamicRHI->GetName() == FString(TEXT("D3D12")))
-				{
-					ReadTextureDX12(RHICmdList);
-				}
-				else
-				{
-					ReadTexture(RHICmdList);
-				}
-				TaskEvent->Trigger();
-			});
-		TaskEvent->Wait(300);
-		FPlatformProcess::ReturnSynchEventToPool(TaskEvent);
-
-		int Width = TextureRef->GetSizeX();
-		int Height = TextureRef->GetSizeY();
-
-		Buffer = webrtc::I420Buffer::Create(Width, Height);
-		if (TextureData)
+		if (!Buffer)
 		{
-			libyuv::ARGBToI420(
-				static_cast<uint8*>(TextureData),
-				PitchPixels * 4,
-				Buffer->MutableDataY(),
-				Buffer->StrideY(),
-				Buffer->MutableDataU(),
-				Buffer->StrideU(),
-				Buffer->MutableDataV(),
-				Buffer->StrideV(),
-				Buffer->width(),
-				Buffer->height());
+			int Width = TextureRef->GetSizeX();
+			int Height = TextureRef->GetSizeY();
+
+			Buffer = webrtc::I420Buffer::Create(Width, Height);
+			if (TextureData)
+			{
+				libyuv::ARGBToI420(
+					static_cast<uint8*>(TextureData),
+					PitchPixels * 4,
+					Buffer->MutableDataY(),
+					Buffer->StrideY(),
+					Buffer->MutableDataU(),
+					Buffer->StrideU(),
+					Buffer->MutableDataV(),
+					Buffer->StrideV(),
+					Buffer->width(),
+					Buffer->height());
+			}
 		}
-		FPublisherStats::Get().TextureReadbackEnd();
+
 		return Buffer;
 	}
 
