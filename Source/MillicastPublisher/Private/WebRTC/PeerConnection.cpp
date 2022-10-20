@@ -5,6 +5,7 @@
 #include "AudioDeviceModule.h"
 #include "VideoEncoderFactory.h"
 #include "MillicastVideoEncoderFactory.h"
+#include "Stats.h"
 
 #include <sstream>
 

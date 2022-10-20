@@ -2,6 +2,7 @@
 
 #include "Stats.h"
 #include "WebRTC/PeerConnection.h"
+#include "MillicastPublisherPrivate.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMillicastStats, Log, All);
 DEFINE_LOG_CATEGORY(LogMillicastStats);
