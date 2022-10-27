@@ -348,6 +348,7 @@ bool UMillicastPublisherComponent::PublishToMillicast()
 	}
 	if (MaximumBitrate.IsSet()) {
 		bitrateParameters.max_bitrate_bps = *MaximumBitrate;
+		bitrateParameters.current_bitrate_bps = *MaximumBitrate;
 	}
 	if (StartingBitrate.IsSet()) {
 		bitrateParameters.current_bitrate_bps = *StartingBitrate;
